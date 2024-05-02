@@ -1,3 +1,5 @@
+@Library('pipeline-library@pull/853/head') _
+
 def cronExpr = env.BRANCH_IS_PRIMARY ? '@hourly' : ''
 def reportsFolder = 'plugin-health-scoring'
 def reportFile = env.BRANCH_IS_PRIMARY ? 'scores.json' : "scores-${env.BRANCH_NAME}.json"
@@ -36,17 +38,12 @@ pipeline {
     }
 
     stage('Publish if report not empty') {
+      when {
+          environment name: 'BRANCH_IS_PRIMARY', value: true
+      }
       steps {
-        dir('plugin-health-scoring') {
-          script {
-            reportLines = sh(returnStdout:true, script: '''
-            wc -l "${REPORT_FILE}" | awk '{print $1}'
-            ''').trim()
-            echo "Found reportLines=${reportLines}"
-            if (reportLines > 0) {
-              publishReports([ "${reportsFolder}/${reportFile}" ])
-            }
-          }
+        if (reportLines > 0) {
+          publishReports([ "${reportsFolder}/${reportFile}" ], [failIfEmpty: true])
         }
       }
     }
